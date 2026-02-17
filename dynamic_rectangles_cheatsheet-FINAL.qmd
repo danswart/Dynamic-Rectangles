@@ -1,0 +1,277 @@
+---
+subtitle: ""
+description: ""
+# bibliography: manual-refs.bib
+format:
+  html:
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true        # This adds individual buttons
+    code-fold: true        # Hide code by default, show on click
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    embed-resources: false     # Set to 'false' for drafts. Override if you're NOT sharing output
+    include-in-header:
+      - text: 
+          <link href="https://fonts.googleapis.com/css2?family=Lato&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Cabin&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Schoolbell&display=swap" rel="stylesheet">
+      - header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 8.5
+    fig-height: 11
+    fig-dpi: 300
+    html-math-method: katex
+    df-print: paged
+    toc: true
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
+  typst:
+    fig-width: 8.5
+    fig-height: 11
+    fig-dpi: 300
+    margin:
+      x: 0.25in
+      y: 0.25in
+    toc: false
+    fontsize: 16pt
+    mainfont: "Cabin"
+  
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+editor: source
+quarto:
+  render:
+    cache-refresh: true
+# for .qmd filesd
+execute:
+  echo: false
+  message: false
+  warning: false
+  eval: true
+  fig-width: 13
+  fig-height: 8
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: false
+    error: false
+    warning: false
+    message: false
+    cache: false
+---
+
+```{r}
+#| label: setup
+
+library(ggplot2)
+
+##### Key tuning parameters if you need adjustments:
+#####   
+#####   title_space — room above each rectangle for the title
+#####   caption_space — room below each rectangle for the caption
+#####   row_gap — breathing room between rows
+#####   margin — internal margin (your YAML handles page margins)
+#####   title_offset — distance from title text to top of rectangle
+#####   caption_offset — distance from caption text to bottom of rectangle
+#####   header_height — space for main title and date
+#####   rect_h <- 1.25   # inches - increase/decrease until rectangles are desired size
+
+sqrt_phi <- sqrt((1 + sqrt(5)) / 2)  # sqrt of phi = 1.2720196495
+
+# Editable title and date
+chart_title <- "Height x Multiplier = Length of Base"
+chart_date <- format(Sys.Date(), "%B %d, %Y")
+
+# Ratios: Square, Golden Ratio, then Root 2-9
+ratios <- list(
+  list(name = "Square",              ratio = 1,        label = "multiplier = 1"),
+  list(name = "Golden Rectangle",    ratio = sqrt_phi, label = sprintf("Multiplier = %.4f = √φ", sqrt_phi)),
+  list(name = "Root 2 Rectangle",    ratio = sqrt(2),  label = sprintf("Multiplier = %.4f = √2", sqrt(2))),
+  list(name = "Root 3 Rectangle",    ratio = sqrt(3),  label = sprintf("Multiplier = %.4f = √3", sqrt(3))),
+  list(name = "Root 4 Rectangle",    ratio = sqrt(4),  label = sprintf("Multiplier = %.4f = √4", sqrt(4))),
+  list(name = "Root 5 Rectangle",    ratio = sqrt(5),  label = sprintf("Multiplier = %.4f = √5", sqrt(5))),
+  list(name = "Root 6 Rectangle",    ratio = sqrt(6),  label = sprintf("Multiplier = %.4f = √6", sqrt(6))),
+  list(name = "Root 7 Rectangle",    ratio = sqrt(7),  label = sprintf("Multiplier = %.4f = √7", sqrt(7))),
+  list(name = "Root 8 Rectangle",    ratio = sqrt(8),  label = sprintf("Multiplier = %.4f = √8", sqrt(8))),
+  list(name = "Root 9 Rectangle",    ratio = sqrt(9),  label = sprintf("Multiplier = %.4f = √9", sqrt(9)))
+)
+
+create_frame_sheet <- function(page_width, page_height) {
+  margin <- 0.0
+  work_width <- page_width - 2 * margin
+  work_height <- page_height - 2 * margin
+  
+  # Reserve space for header
+  header_height <- 1.00   # ADJUST THIS AS NEEDED
+  content_top <- work_height - header_height
+  
+  # Two columns
+  col_gap <- 0.3
+  col_width <- (work_width - col_gap) / 2
+  
+  # 5 rectangles per column
+  n_per_col <- 5
+  
+  # FIXED HEIGHT FOR ALL RECTANGLES - ADJUST THIS VALUE
+  rect_h <- 1.10  # inches - increase/decrease until rectangles are desired size
+  
+  # Fixed spacing for title and caption
+  title_space <- 0.22   # space above rectangle for title
+  caption_space <- 0.22 # space below rectangle for caption
+  
+  # Calculate row_gap from remaining space
+  total_row_height <- title_space + rect_h + caption_space
+  total_content_needed <- n_per_col * total_row_height
+  remaining_space <- content_top - total_content_needed
+  row_gap <- 0.45   #remaining_space / (n_per_col - 1)  # distribute remaining space as gaps
+  
+  # Distance from text to rectangle edge (increase for more separation)
+  title_offset <- 0.12
+  caption_offset <- 0.12
+  
+  # Left margin within each column for "h" label
+  left_pad <- 0.25
+  
+  rects <- data.frame(
+    xmin = numeric(), xmax = numeric(), 
+    ymin = numeric(), ymax = numeric(),
+    title = character(), caption = character(),
+    title_x = numeric(), title_y = numeric(),
+    caption_x = numeric(), caption_y = numeric(),
+    h_x = numeric(), h_y = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (i in seq_along(ratios)) {
+    r <- ratios[[i]]
+    
+    # Determine column (1-5 in col 1, 6-10 in col 2)
+    col <- ifelse(i <= n_per_col, 1, 2)
+    row_in_col <- ifelse(i <= n_per_col, i, i - n_per_col)
+    
+    # Column left edge
+    col_left <- ifelse(col == 1, 0, col_width + col_gap)
+    
+    # Calculate vertical position from top down
+    # Row 1 starts at content_top, each subsequent row is below
+    row_top <- content_top - (row_in_col - 1) * (title_space + rect_h + caption_space + row_gap)
+    
+    # Position elements within row
+    rect_top <- row_top - title_space
+    rect_bottom <- rect_top - rect_h
+    
+    # Position text with offset from rectangle edges
+    title_y <- rect_top + title_offset
+    caption_y <- rect_bottom - caption_offset
+    
+    # Width based on aspect ratio (width = height * ratio)
+    rect_w <- rect_h * r$ratio
+    
+    # Left-align within column
+    rect_left <- col_left + left_pad
+    
+    rects <- rbind(rects, data.frame(
+      xmin = rect_left,
+      xmax = rect_left + rect_w,
+      ymin = rect_bottom,
+      ymax = rect_top,
+      title = r$name,
+      caption = r$label,
+      title_x = rect_left,
+      title_y = title_y,
+      caption_x = rect_left,
+      caption_y = caption_y,
+      h_x = rect_left - 0.10,
+      h_y = (rect_top + rect_bottom) / 2
+    ))
+  }
+  
+  # Header positions
+  header_y <- work_height - header_height / 2
+  
+  p <- ggplot2::ggplot() +
+    # Header: title on left, date above
+    ggplot2::annotate("text", x = 0, y = 9.5, label = "** Root 2 Example: If height = 36cm, base = 36cm x 1.4142 = 50.9cm",
+                      size = 5, fontface = "bold", hjust = 0, vjust = 0.5) +
+    ggplot2::annotate("text", x = 0, y = 10, label = chart_title,
+                      size = 10, fontface = "bold", hjust = 0, vjust = 0.5) +
+    ggplot2::annotate("text", x = work_width, y = 10.5, label = chart_date,
+                      size = 4.5, hjust = 1, vjust = 0.5) +
+    # Rectangles
+    ggplot2::geom_rect(
+      data = rects,
+      ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      fill = NA, color = "black", linewidth = 2
+    ) +
+    ggplot2::geom_text(
+      data = rects,
+      ggplot2::aes(x = title_x, y = title_y, label = title),
+      size = 5, fontface = "bold", hjust = 0, vjust = 0
+    ) +
+    ggplot2::geom_text(
+      data = rects,
+      ggplot2::aes(x = caption_x, y = caption_y, label = caption),
+      size = 4.5, hjust = 0, vjust = 1
+    ) +
+    ggplot2::geom_text(
+      data = rects,
+      ggplot2::aes(x = h_x, y = h_y, label = "1"),
+      size = 4.5, fontface = "italic", hjust = 1
+    ) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, work_width), ylim = c(0, work_height), clip = "off") +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      plot.margin = ggplot2::margin(5, 5, 5, 5),
+      aspect.ratio = NULL
+    )
+  
+  p
+}
+```
+
+```{r}
+#| label: portrait
+#| fig-width: 7.5
+#| fig-height: 10
+#| fig-align: left
+
+create_frame_sheet(7.5, 10)
+```

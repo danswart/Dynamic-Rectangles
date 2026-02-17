@@ -1,0 +1,727 @@
+---
+title: "√2 Rectangle Arrow Tool: Why It Matches in Some Corners and Not Others (and Why Midpoints Appear)"
+subtitle: ""
+description: ""
+author: "Dan Swart"
+authors: 
+  - name: "Dan Swart, CPA (ret)"
+date: today
+date-format: long
+# bibliography: manual-refs.bib
+format:
+  html:
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true        # This adds individual buttons
+    code-fold: true        # Hide code by default, show on click
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    embed-resources: true     # Set to 'false' for drafts. Override if you're NOT sharing output
+    include-in-header:
+      - text: 
+          <link href="https://fonts.googleapis.com/css2?family=Lato&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Cabin&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Schoolbell&display=swap" rel="stylesheet">
+      - header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 13
+    fig-height: 8
+    fig-dpi: 300
+    html-math-method: katex
+    df-print: paged
+    toc: true
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
+  typst:
+    fig-width: 13
+    fig-height: 8
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
+    toc: false
+    fontsize: 16pt
+    mainfont: "Cabin"
+  
+
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+
+
+
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+
+
+
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+
+# for .qmd filesd
+execute:
+  echo: false
+  message: false
+  warning: false
+  eval: true
+  fig-width: 13
+  fig-height: 8
+
+
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: false
+    error: false
+    warning: false
+    message: false
+    cache: false
+
+
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+
+
+# install.packages(c("mapview", "survey", "srvyr", "arcgislayers"))
+
+# census_api_key("95496766c51541ee6f402c1e1a8658581285b759", install = TRUE, overwrite = TRUE)
+
+
+# # load libraries - NOT NEEDED
+
+
+# Force dplyr's select to take precedence
+select <- dplyr::select
+filter <- dplyr::filter
+
+# Options
+options(scipen = 999)
+options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(qic.signalcol = "firebrick") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(DT.options = list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
+options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
+options(tigris_use_cache = TRUE)
+options(device = "RStudioGD") 
+
+
+# Flextable defaults:
+flextable::set_flextable_defaults(
+  font.size = 14, 
+  font.family = "Cabin",
+  font.color = "black",
+  table.layout = "fixed",
+  border.color = "darkgray",
+  padding.top = 3, padding.bottom = 3,
+  padding.left = 4, padding.right = 4,
+  line_spacing = 1.3,
+  digits = 2,
+  decimal.mark = ".",
+  big.mark = " ",
+  na_str = "<na>",
+  post_process_html = identity,
+  post_process_docx = identity
+)
+
+
+
+# Flextable built-in themes:
+  # flextable::theme_alafoli()	|>  # BLAH
+  # flextable::theme_apa()  # THIS IS NICE
+  # flextable::theme_booktabs() |>  # NICE, MORE COMPACT
+  # flextable::theme_box() |>   # OK, INCLUDES CELL BORDERS
+  # flextable::theme_tron() |>  # 'DARK MODE' BLUE TEXT
+  # flextable::theme_tron_legacy() |>   # 'DARK MODE' YELLOW TEXT
+  # flextable::theme_vader() |>    # 'DARK MODE' WHITE TEXT
+  # flextable::theme_vanilla() |>   # NOT SPECIAL
+  # flextable::theme_zebra()	|>
+  #
+
+
+# Set global theme for consistent plots
+ggplot2::theme_set(
+  ggplot2::theme_minimal(base_size = 20) +
+    ggplot2::theme(
+      plot.title.position = "plot",
+      plot.title = ggtext::element_textbox_simple(
+        family = "Cabin",
+        face = "bold",
+        color = "darkgreen",
+        size = 16,
+        fill = "yellow",
+        lineheight = 0.9,
+        padding = ggplot2::margin(5.5, 5.5, 0.0, 5.5),
+        margin = ggplot2::margin(0, 0, 5.5, 0)
+      ),
+      plot.subtitle = ggtext::element_textbox_simple(
+        family = "Cabin",
+        color = "darkgreen",
+        face = "bold",
+        size = 14,
+        fill = "yellow",
+        lineheight = 0.9,
+        padding = ggplot2::margin(5.5, 5.5, 5.5, 5.5),
+        margin = ggplot2::margin(0.0, 0, 5.5, 0)
+      ),
+      plot.caption = ggtext::element_markdown(
+        family = "Cabin",
+        size = 14,
+        hjust = 1,
+        color = "darkblue",
+        face = "italic",
+        fill = "yellow",
+        lineheight = 1.0
+      ),
+      axis.text.x = ggtext::element_markdown(
+        family = "Cabin",
+        face = "bold",
+        color = "blue",
+        size = 12,
+        angle = 45,
+        hjust = 1
+      ),
+        # ggplot2::element_blank(),
+      axis.title.x = ggtext::element_markdown(
+        family = "Cabin",
+        face = "bold",
+        color = "blue",
+        size = 14),
+        # ggplot2::element_blank(),
+      axis.text.y = ggtext::element_markdown(
+        family = "Cabin",
+        face = "bold",
+        color = "blue",
+        size = 12,
+        angle = 45,
+        hjust = 1
+      ),
+        # ggplot2::element_blank(),
+      axis.title.y = ggtext::element_markdown(
+        family = "Cabin",
+        face = "bold",
+        color = "blue",
+        size = 12),
+        # ggplot2::element_blank(),
+      strip.text = ggtext::element_markdown(
+        family = "Cabin",
+        color = "black",
+        size = 12,
+        face = "italic",
+        margin = ggplot2::margin(2, 0, 0.5, 0, "lines")
+      ),
+      axis.text = ggtext::element_markdown(
+        family = "Cabin",
+        color = "black"),
+      panel.background = ggplot2::element_rect(fill = "white", color = NA),
+      plot.background = ggplot2::element_rect(fill = "white", color = NA),
+      legend.position = "none",
+      panel.spacing.x = grid::unit(1.5, "cm"),
+      panel.spacing.y = grid::unit(1.5, "cm"),
+      plot.margin = ggplot2::margin(20, 20, 20, 20, "pt")
+    )
+)
+
+
+
+  
+# Set seed for reproducibility
+base::set.seed(123)
+
+```
+
+## Problem statement 
+
+\
+Starting with a rectangle or height and base of:
+
+- Height \(h = 36\) cm  
+- Base \(w = 36\sqrt{2} \approx 50.9\) cm  
+
+You then created a “tool” (a fan of arrows) from a corner. Each arrow is drawn at an angle computed from the base, using **method B**:
+
+\[
+\theta_n = \arctan\!\left(\frac{1}{\sqrt{n}}\right)
+\]
+
+You used \(n \in \{\varphi, 2, 3, 4, 5, 6, 7\}\) (with \(\varphi\) the golden ratio) and expected the \(\sqrt{2}\) arrow to align with the drawn diagonal everywhere.
+
+It **does** match perfectly in some placements, but **not for every corner**. Even more interesting: the “\(\sqrt2\) arrow” placed at certain corners points directly to the **midpoint** of an opposite side.
+
+The geometry is doing exactly what it should—this is an **orientation / quadrant** issue plus a **complement-angle** phenomenon.
+
+---
+
+## Key facts
+
+### The √2 rectangle diagonal angle (method B)
+
+For a \(\sqrt2\) rectangle, \(w = h\sqrt2\). The diagonal from bottom-left has slope:
+
+\[
+\text{slope} = \frac{h}{w} = \frac{h}{h\sqrt2} = \frac{1}{\sqrt2}
+\]
+
+So the diagonal angle above the base (when the base points to the right) is:
+
+\[
+\theta = \arctan\!\left(\frac{1}{\sqrt2}\right)\approx 35.264^\circ
+\]
+
+This is exactly what you computed with **B**.
+
+### Complement angle (the one that causes midpoints)
+
+The complement is:
+
+\[
+90^\circ - \theta
+= 90^\circ - \arctan\!\left(\frac{1}{\sqrt2}\right)
+= \arctan(\sqrt2)
+\approx 54.736^\circ
+\]
+
+That complementary direction has slope \(\sqrt2\) (steeper). In a \(\sqrt2\) rectangle, that ray has a special “midpoint” intersection property.
+
+---
+
+## Diagram 1 — The √2 rectangle and its true diagonal
+
+```{r}
+#| label: fig-rectangle-diagonal
+#| fig-cap: "√2 rectangle (h = 36, w = 36√2) and the diagonal angle θ = arctan(1/√2) ≈ 35.264° measured from the base."
+#| fig-width: 7
+#| fig-height: 5
+
+h <- 36
+w <- h * sqrt(2)
+
+theta <- atan(1/sqrt(2))          # radians
+theta_deg <- theta * 180/pi
+
+# Data for segments
+df_seg <- tibble::tibble(
+  x = c(0, 0),
+  y = c(0, 0),
+  xend = c(w, w),
+  yend = c(0, h),
+  which = c("base", "diagonal")
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = df_seg,
+    ggplot2::aes(x = x, y = y, xend = xend, yend = yend, linetype = which),
+    linewidth = 0.9
+  ) +
+  ggplot2::scale_linetype_manual(values = c(base = "solid", diagonal = "solid")) +
+  ggplot2::annotate("text", x = w/2, y = -1.5, label = "base (w = h√2)", vjust = 1) +
+  ggplot2::annotate("text", x = w + 1.5, y = h/2, label = "height (h)", hjust = 0) +
+  ggplot2::annotate(
+    "text",
+    x = w*0.35, y = h*0.16,
+    label = paste0("θ = arctan(1/√2)\n≈ ", round(theta_deg, 3), "°"),
+    hjust = 0
+  ) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL)
+```
+
+### What you’re seeing
+
+From the **bottom-left corner**, measuring angle upward from the bottom edge:
+
+- The diagonal makes about **35.264°** with the base.
+- That matches your computed angle (method B).
+- So your arrow aligns perfectly.
+
+This is the “it works perfectly here” case.
+
+---
+
+## Why it fails at other corners (the quadrant/orientation issue)
+
+The diagonal is one geometric direction, but the **numeric angle you must use depends on how the local base edge is oriented**.
+
+If your tool assumes:
+
+- the base runs left → right  
+- and angles are measured counter-clockwise from that base
+
+…then moving the tool to a corner where the edge direction is reversed (right → left), or where you’re effectively measuring from a vertical edge, requires angle transforms.
+
+---
+
+## Table — Correct diagonal direction at each corner
+
+Let \(\theta \approx 35.264^\circ\).
+
+```{r}
+#| label: tbl-corner-angles
+#| tbl-cap: "Same diagonal direction, but the numeric angle depends on the corner (quadrant)."
+
+corner_tbl <- tibble::tibble(
+  corner = c("Bottom-Left", "Bottom-Right", "Top-Right", "Top-Left"),
+  correct_angle = c("θ",
+                    "180° − θ",
+                    "180° + θ",
+                    "360° − θ"),
+  numeric_degrees = c(theta_deg,
+                      180 - theta_deg,
+                      180 + theta_deg,
+                      360 - theta_deg)
+) |>
+  dplyr::mutate(numeric_degrees = round(numeric_degrees, 3))
+
+flextable::flextable(corner_tbl) |>
+  flextable::colformat_num(j = "numeric_degrees", digits = 3) |>
+  flextable::autofit()
+```
+
+---
+
+## Diagram 2 — The diagonal direction from all corners
+
+This plot draws the diagonal direction as a ray from each corner.
+
+```{r}
+#| label: fig-corners-diagonals
+#| fig-cap: "Diagonal direction rays from all four corners. The direction is the same geometry, but the angle label changes by quadrant."
+#| fig-width: 7
+#| fig-height: 5
+
+corners <- tibble::tibble(
+  corner = c("BL","BR","TR","TL"),
+  x0 = c(0, w, w, 0),
+  y0 = c(0, 0, h, h),
+  x1 = c(w, 0, 0, w),
+  y1 = c(h, h, 0, 0)
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = corners,
+    ggplot2::aes(x = x0, y = y0, xend = x1, yend = y1),
+    linewidth = 0.9
+  ) +
+  ggplot2::geom_point(
+    data = corners,
+    ggplot2::aes(x = x0, y = y0),
+    size = 2.3
+  ) +
+  ggplot2::annotate("text", x = 0, y = 0, label = "BL", hjust = -0.2, vjust = -0.6) +
+  ggplot2::annotate("text", x = w, y = 0, label = "BR", hjust = 1.2, vjust = -0.6) +
+  ggplot2::annotate("text", x = w, y = h, label = "TR", hjust = 1.2, vjust = 1.3) +
+  ggplot2::annotate("text", x = 0, y = h, label = "TL", hjust = -0.2, vjust = 1.3) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL)
+```
+
+### The core insight
+
+Your geometry is correct.
+
+The mismatch is entirely about this:
+
+> **Angle direction depends on edge orientation.**
+
+The diagonal is a fixed line. But the **angle number** that describes it depends on which axis and orientation you’re measuring from.
+
+---
+
+## The midpoint phenomenon (the “beautiful surprise”)
+
+You noticed something that feels strange at first:
+
+> The √2 arrow, when placed at two of the other corners, points directly to the midpoint of the opposite side.
+
+That midpoint behavior happens when the direction you actually draw corresponds to the **complement angle**:
+
+\[
+90^\circ-\theta = \arctan(\sqrt2)\approx 54.736^\circ
+\]
+
+That angle has slope \(\sqrt2\). In a \(\sqrt2\) rectangle, a ray with slope \(\sqrt2\) from a corner hits the opposite side exactly at its midpoint.
+
+### Algebra (coordinate proof)
+
+Let the rectangle have height \(h\) and width \(w=h\sqrt2\).
+
+From the bottom-left corner, draw the line:
+
+\[
+y = \sqrt2\,x
+\]
+
+It hits the top edge when \(y=h\), so:
+
+\[
+h = \sqrt2\,x \quad \Rightarrow \quad x=\frac{h}{\sqrt2}
+\]
+
+But half the width is:
+
+\[
+\frac{w}{2} = \frac{h\sqrt2}{2} = \frac{h}{\sqrt2}
+\]
+
+So \(x=w/2\). That is **exactly the midpoint** of the top edge.
+
+This is not a coincidence; it’s a built-in symmetry of \(\sqrt2\).
+
+---
+
+## Diagram 3 — The midpoint ray (slope √2) vs the diagonal (slope 1/√2)
+
+```{r}
+#| label: fig-midpoint-vs-diagonal
+#| fig-cap: "In a √2 rectangle, the slope √2 ray hits the midpoint of the top edge; the true diagonal uses slope 1/√2."
+#| fig-width: 7
+#| fig-height: 5
+
+# Intersection of y = sqrt(2) x with y = h
+x_mid <- h / sqrt(2)
+
+df_lines <- tibble::tibble(
+  which = c("diagonal (slope 1/√2)", "midpoint ray (slope √2)"),
+  x = c(0, 0),
+  y = c(0, 0),
+  xend = c(w, x_mid),
+  yend = c(h, h)
+)
+
+df_mid <- tibble::tibble(
+  x = x_mid,
+  y = h,
+  label = "midpoint of top edge"
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = df_lines,
+    ggplot2::aes(x = x, y = y, xend = xend, yend = yend, linetype = which),
+    linewidth = 0.9
+  ) +
+  ggplot2::geom_point(
+    data = df_mid,
+    ggplot2::aes(x = x, y = y),
+    size = 2.5
+  ) +
+  ggplot2::annotate("text", x = x_mid, y = h + 1.2, label = "midpoint", vjust = 0) +
+  ggplot2::annotate("text", x = w*0.58, y = h*0.55,
+                    label = "diagonal: tan(θ)=1/√2", hjust = 0) +
+  ggplot2::annotate("text", x = w*0.25, y = h*0.80,
+                    label = "complement: tan(90°−θ)=√2", hjust = 0) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL) +
+  ggplot2::scale_linetype_manual(values = c("diagonal (slope 1/√2)" = "solid",
+                                            "midpoint ray (slope √2)" = "dashed"))
+```
+
+---
+
+## Practical “place the tool at any corner” rule
+
+Let your method-B angle be:
+
+\[
+\theta_n = \arctan\!\left(\frac{1}{\sqrt{n}}\right)
+\]
+
+When you place the tool at a new corner, you must account for the local base direction:
+
+- If the base edge points **left → right**, you can use \(\theta_n\) directly (counter-clockwise from the base).
+- If the base edge points **right → left**, use \(180^\circ - \theta_n\).
+- If you’re measuring from a vertical edge instead of the base, use the complement \(90^\circ - \theta_n\) (or convert accordingly).
+
+A lot of “it works here but not there” comes from needing a **mirror flip** (reflection) rather than a pure rotation.
+
+---
+
+## Extending the idea to √3, √5, √φ, etc.
+
+Your method B angle for any \(n>0\):
+
+\[
+\theta_n = \arctan\!\left(\frac{1}{\sqrt{n}}\right)
+\quad\Rightarrow\quad
+\tan(\theta_n)=\frac{1}{\sqrt{n}}
+\]
+
+The complementary direction is:
+
+\[
+90^\circ-\theta_n = \arctan(\sqrt{n})
+\quad\Rightarrow\quad
+\tan(90^\circ-\theta_n)=\sqrt{n}
+\]
+
+So every time you see an “unexpected” but *consistent* targeting behavior (like midpoints), it’s a strong hint that you’re drawing a **complement** (slope \(\sqrt{n}\)) rather than the intended method-B direction (slope \(1/\sqrt{n}\)).
+
+### Quick reference table (method B)
+
+```{r}
+#| label: tbl-general-angles
+#| tbl-cap: "Method B angles θn = arctan(1/√n) and their complements."
+
+phi <- (1 + sqrt(5))/2
+
+n_vals <- tibble::tibble(
+  label = c("φ", "2", "3", "4", "5", "6", "7"),
+  n = c(phi, 2, 3, 4, 5, 6, 7)
+) |>
+  dplyr::mutate(
+    theta_rad = atan(1/sqrt(n)),
+    theta_deg = theta_rad * 180/pi,
+    comp_deg  = 90 - theta_deg
+  ) |>
+  dplyr::mutate(
+    theta_deg = round(theta_deg, 3),
+    comp_deg  = round(comp_deg, 3)
+  ) |>
+  dplyr::select(label, n, theta_deg, comp_deg)
+
+flextable::flextable(n_vals) |>
+  flextable::set_header_labels(
+    label = "n (label)",
+    n = "n (value)",
+    theta_deg = "θn = arctan(1/√n) (deg)",
+    comp_deg = "90° − θn (deg)"
+  ) |>
+  flextable::autofit()
+```
+
+---
+
+## One more diagnostic diagram: the “fan” from a corner
+
+This last plot shows your idea: multiple method-B rays from the bottom-left corner.
+
+```{r}
+#| label: fig-fan
+#| fig-cap: "A method-B fan of rays from the bottom-left corner for n ∈ {φ,2,3,4,5,6,7}. The √2 diagonal is included for reference."
+#| fig-width: 7
+#| fig-height: 5
+
+phi <- (1 + sqrt(5))/2
+fan <- tibble::tibble(
+  label = c("φ", "2", "3", "4", "5", "6", "7"),
+  n = c(phi, 2, 3, 4, 5, 6, 7)
+) |>
+  dplyr::mutate(
+    theta = atan(1/sqrt(n)),      # radians
+    # pick a common ray length to show direction
+    L = w * 0.95,
+    xend = L * cos(theta),
+    yend = L * sin(theta)
+  )
+
+diag <- tibble::tibble(
+  label = "√2 diagonal",
+  x = 0, y = 0,
+  xend = w, yend = h
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = fan,
+    ggplot2::aes(x = 0, y = 0, xend = xend, yend = yend),
+    linewidth = 0.8,
+    alpha = 0.85
+  ) +
+  ggplot2::geom_segment(
+    data = diag,
+    ggplot2::aes(x = x, y = y, xend = xend, yend = yend),
+    linewidth = 1.0
+  ) +
+  ggplot2::geom_text(
+    data = fan,
+    ggplot2::aes(x = xend, y = yend, label = label),
+    hjust = -0.1,
+    vjust = 0.5,
+    size = 3.5
+  ) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL)
+```
+
+---
+
+## Summary (the narrative, in one place)
+
+- With \(h=36\) and \(w=36\sqrt2\approx 50.9\), your rectangle is essentially a true \(\sqrt2\) rectangle.
+- Using method **B**, the diagonal angle from the base is  
+  \(\theta=\arctan(1/\sqrt2)\approx 35.264^\circ\).  
+  That’s why it matches perfectly at the bottom-left corner when the base runs left → right.
+- When you move the tool to other corners, the *geometry* is unchanged, but the **numeric angle label changes by quadrant**:
+  \(\theta\), \(180^\circ-\theta\), \(180^\circ+\theta\), \(360^\circ-\theta\).
+- The “midpoint” behavior is the complementary angle phenomenon:  
+  \(90^\circ-\theta=\arctan(\sqrt2)\approx 54.736^\circ\).  
+  In a \(\sqrt2\) rectangle, a slope-\(\sqrt2\) ray from a corner hits the opposite side at its midpoint exactly.
+- If your tool is rotated but not mirrored (or if you measure from a different edge), you can accidentally draw the complement direction—producing consistent-but-surprising results like midpoint hits.

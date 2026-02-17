@@ -1,0 +1,488 @@
+---
+title: "√2 Rectangle Arrow Tool: Why It Matches in Some Corners (and Why Midpoints Appear)"
+author: "Dan Swart"
+date: "2026-02-15"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+  pdf:
+    toc: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Setup
+
+```{r}
+#| label: setup
+#| include: true
+
+# Core
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Tables
+library(flextable)
+
+# Optional niceties (safe if installed)
+# library(scales)
+```
+
+## Problem statement (your construction)
+
+You drew a rectangle with:
+
+- Height \(h = 36\) cm  
+- Base \(w = 36\sqrt{2} \approx 50.9\) cm  
+
+You then created a “tool” (a fan of arrows) from a corner. Each arrow is drawn at an angle computed from the base, using **method B**:
+
+\[
+\theta_n = \arctan\!\left(\frac{1}{\sqrt{n}}\right)
+\]
+
+You used \(n \in \{\varphi, 2, 3, 4, 5, 6, 7\}\) (with \(\varphi\) the golden ratio) and expected the \(\sqrt{2}\) arrow to align with the drawn diagonal everywhere.
+
+It **does** match perfectly in some placements, but **not for every corner**. Even more interesting: the “\(\sqrt2\) arrow” placed at certain corners points directly to the **midpoint** of an opposite side.
+
+The geometry is doing exactly what it should—this is an **orientation / quadrant** issue plus a **complement-angle** phenomenon.
+
+---
+
+## Key facts
+
+### The √2 rectangle diagonal angle (method B)
+
+For a \(\sqrt2\) rectangle, \(w = h\sqrt2\). The diagonal from bottom-left has slope:
+
+\[
+\text{slope} = \frac{h}{w} = \frac{h}{h\sqrt2} = \frac{1}{\sqrt2}
+\]
+
+So the diagonal angle above the base (when the base points to the right) is:
+
+\[
+\theta = \arctan\!\left(\frac{1}{\sqrt2}\right)\approx 35.264^\circ
+\]
+
+This is exactly what you computed with **B**.
+
+### Complement angle (the one that causes midpoints)
+
+The complement is:
+
+\[
+90^\circ - \theta
+= 90^\circ - \arctan\!\left(\frac{1}{\sqrt2}\right)
+= \arctan(\sqrt2)
+\approx 54.736^\circ
+\]
+
+That complementary direction has slope \(\sqrt2\) (steeper). In a \(\sqrt2\) rectangle, that ray has a special “midpoint” intersection property.
+
+---
+
+## Diagram 1 — The √2 rectangle and its true diagonal
+
+```{r}
+#| label: fig-rectangle-diagonal
+#| fig-cap: "√2 rectangle (h = 36, w = 36√2) and the diagonal angle θ = arctan(1/√2) ≈ 35.264° measured from the base."
+#| fig-width: 7
+#| fig-height: 5
+
+h <- 36
+w <- h * sqrt(2)
+
+theta <- atan(1/sqrt(2))          # radians
+theta_deg <- theta * 180/pi
+
+# Data for segments
+df_seg <- tibble::tibble(
+  x = c(0, 0),
+  y = c(0, 0),
+  xend = c(w, w),
+  yend = c(0, h),
+  which = c("base", "diagonal")
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = df_seg,
+    ggplot2::aes(x = x, y = y, xend = xend, yend = yend, linetype = which),
+    linewidth = 0.9
+  ) +
+  ggplot2::scale_linetype_manual(values = c(base = "solid", diagonal = "solid")) +
+  ggplot2::annotate("text", x = w/2, y = -1.5, label = "base (w = h√2)", vjust = 1) +
+  ggplot2::annotate("text", x = w + 1.5, y = h/2, label = "height (h)", hjust = 0) +
+  ggplot2::annotate(
+    "text",
+    x = w*0.35, y = h*0.16,
+    label = paste0("θ = arctan(1/√2)\n≈ ", round(theta_deg, 3), "°"),
+    hjust = 0
+  ) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL)
+```
+
+### What you’re seeing
+
+From the **bottom-left corner**, measuring angle upward from the bottom edge:
+
+- The diagonal makes about **35.264°** with the base.
+- That matches your computed angle (method B).
+- So your arrow aligns perfectly.
+
+This is the “it works perfectly here” case.
+
+---
+
+## Why it fails at other corners (the quadrant/orientation issue)
+
+The diagonal is one geometric direction, but the **numeric angle you must use depends on how the local base edge is oriented**.
+
+If your tool assumes:
+
+- the base runs left → right  
+- and angles are measured counter-clockwise from that base
+
+…then moving the tool to a corner where the edge direction is reversed (right → left), or where you’re effectively measuring from a vertical edge, requires angle transforms.
+
+---
+
+## Table — Correct diagonal direction at each corner
+
+Let \(\theta \approx 35.264^\circ\).
+
+```{r}
+#| label: tbl-corner-angles
+#| tbl-cap: "Same diagonal direction, but the numeric angle depends on the corner (quadrant)."
+
+corner_tbl <- tibble::tibble(
+  corner = c("Bottom-Left", "Bottom-Right", "Top-Right", "Top-Left"),
+  correct_angle = c("θ",
+                    "180° − θ",
+                    "180° + θ",
+                    "360° − θ"),
+  numeric_degrees = c(theta_deg,
+                      180 - theta_deg,
+                      180 + theta_deg,
+                      360 - theta_deg)
+) |>
+  dplyr::mutate(numeric_degrees = round(numeric_degrees, 3))
+
+flextable::flextable(corner_tbl) |>
+  flextable::colformat_num(j = "numeric_degrees", digits = 3) |>
+  flextable::autofit()
+```
+
+---
+
+## Diagram 2 — The diagonal direction from all corners
+
+This plot draws the diagonal direction as a ray from each corner.
+
+```{r}
+#| label: fig-corners-diagonals
+#| fig-cap: "Diagonal direction rays from all four corners. The direction is the same geometry, but the angle label changes by quadrant."
+#| fig-width: 7
+#| fig-height: 5
+
+corners <- tibble::tibble(
+  corner = c("BL","BR","TR","TL"),
+  x0 = c(0, w, w, 0),
+  y0 = c(0, 0, h, h),
+  x1 = c(w, 0, 0, w),
+  y1 = c(h, h, 0, 0)
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = corners,
+    ggplot2::aes(x = x0, y = y0, xend = x1, yend = y1),
+    linewidth = 0.9
+  ) +
+  ggplot2::geom_point(
+    data = corners,
+    ggplot2::aes(x = x0, y = y0),
+    size = 2.3
+  ) +
+  ggplot2::annotate("text", x = 0, y = 0, label = "BL", hjust = -0.2, vjust = -0.6) +
+  ggplot2::annotate("text", x = w, y = 0, label = "BR", hjust = 1.2, vjust = -0.6) +
+  ggplot2::annotate("text", x = w, y = h, label = "TR", hjust = 1.2, vjust = 1.3) +
+  ggplot2::annotate("text", x = 0, y = h, label = "TL", hjust = -0.2, vjust = 1.3) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL)
+```
+
+### The core insight
+
+Your geometry is correct.
+
+The mismatch is entirely about this:
+
+> **Angle direction depends on edge orientation.**
+
+The diagonal is a fixed line. But the **angle number** that describes it depends on which axis and orientation you’re measuring from.
+
+---
+
+## The midpoint phenomenon (the “beautiful surprise”)
+
+You noticed something that feels strange at first:
+
+> The √2 arrow, when placed at two of the other corners, points directly to the midpoint of the opposite side.
+
+That midpoint behavior happens when the direction you actually draw corresponds to the **complement angle**:
+
+\[
+90^\circ-\theta = \arctan(\sqrt2)\approx 54.736^\circ
+\]
+
+That angle has slope \(\sqrt2\). In a \(\sqrt2\) rectangle, a ray with slope \(\sqrt2\) from a corner hits the opposite side exactly at its midpoint.
+
+### Algebra (coordinate proof)
+
+Let the rectangle have height \(h\) and width \(w=h\sqrt2\).
+
+From the bottom-left corner, draw the line:
+
+\[
+y = \sqrt2\,x
+\]
+
+It hits the top edge when \(y=h\), so:
+
+\[
+h = \sqrt2\,x \quad \Rightarrow \quad x=\frac{h}{\sqrt2}
+\]
+
+But half the width is:
+
+\[
+\frac{w}{2} = \frac{h\sqrt2}{2} = \frac{h}{\sqrt2}
+\]
+
+So \(x=w/2\). That is **exactly the midpoint** of the top edge.
+
+This is not a coincidence; it’s a built-in symmetry of \(\sqrt2\).
+
+---
+
+## Diagram 3 — The midpoint ray (slope √2) vs the diagonal (slope 1/√2)
+
+```{r}
+#| label: fig-midpoint-vs-diagonal
+#| fig-cap: "In a √2 rectangle, the slope √2 ray hits the midpoint of the top edge; the true diagonal uses slope 1/√2."
+#| fig-width: 7
+#| fig-height: 5
+
+# Intersection of y = sqrt(2) x with y = h
+x_mid <- h / sqrt(2)
+
+df_lines <- tibble::tibble(
+  which = c("diagonal (slope 1/√2)", "midpoint ray (slope √2)"),
+  x = c(0, 0),
+  y = c(0, 0),
+  xend = c(w, x_mid),
+  yend = c(h, h)
+)
+
+df_mid <- tibble::tibble(
+  x = x_mid,
+  y = h,
+  label = "midpoint of top edge"
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = df_lines,
+    ggplot2::aes(x = x, y = y, xend = xend, yend = yend, linetype = which),
+    linewidth = 0.9
+  ) +
+  ggplot2::geom_point(
+    data = df_mid,
+    ggplot2::aes(x = x, y = y),
+    size = 2.5
+  ) +
+  ggplot2::annotate("text", x = x_mid, y = h + 1.2, label = "midpoint", vjust = 0) +
+  ggplot2::annotate("text", x = w*0.58, y = h*0.55,
+                    label = "diagonal: tan(θ)=1/√2", hjust = 0) +
+  ggplot2::annotate("text", x = w*0.25, y = h*0.80,
+                    label = "complement: tan(90°−θ)=√2", hjust = 0) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL) +
+  ggplot2::scale_linetype_manual(values = c("diagonal (slope 1/√2)" = "solid",
+                                            "midpoint ray (slope √2)" = "dashed"))
+```
+
+---
+
+## Practical “place the tool at any corner” rule
+
+Let your method-B angle be:
+
+\[
+\theta_n = \arctan\!\left(\frac{1}{\sqrt{n}}\right)
+\]
+
+When you place the tool at a new corner, you must account for the local base direction:
+
+- If the base edge points **left → right**, you can use \(\theta_n\) directly (counter-clockwise from the base).
+- If the base edge points **right → left**, use \(180^\circ - \theta_n\).
+- If you’re measuring from a vertical edge instead of the base, use the complement \(90^\circ - \theta_n\) (or convert accordingly).
+
+A lot of “it works here but not there” comes from needing a **mirror flip** (reflection) rather than a pure rotation.
+
+---
+
+## Extending the idea to √3, √5, √φ, etc.
+
+Your method B angle for any \(n>0\):
+
+\[
+\theta_n = \arctan\!\left(\frac{1}{\sqrt{n}}\right)
+\quad\Rightarrow\quad
+\tan(\theta_n)=\frac{1}{\sqrt{n}}
+\]
+
+The complementary direction is:
+
+\[
+90^\circ-\theta_n = \arctan(\sqrt{n})
+\quad\Rightarrow\quad
+\tan(90^\circ-\theta_n)=\sqrt{n}
+\]
+
+So every time you see an “unexpected” but *consistent* targeting behavior (like midpoints), it’s a strong hint that you’re drawing a **complement** (slope \(\sqrt{n}\)) rather than the intended method-B direction (slope \(1/\sqrt{n}\)).
+
+### Quick reference table (method B)
+
+```{r}
+#| label: tbl-general-angles
+#| tbl-cap: "Method B angles θn = arctan(1/√n) and their complements."
+
+phi <- (1 + sqrt(5))/2
+
+n_vals <- tibble::tibble(
+  label = c("φ", "2", "3", "4", "5", "6", "7"),
+  n = c(phi, 2, 3, 4, 5, 6, 7)
+) |>
+  dplyr::mutate(
+    theta_rad = atan(1/sqrt(n)),
+    theta_deg = theta_rad * 180/pi,
+    comp_deg  = 90 - theta_deg
+  ) |>
+  dplyr::mutate(
+    theta_deg = round(theta_deg, 3),
+    comp_deg  = round(comp_deg, 3)
+  ) |>
+  dplyr::select(label, n, theta_deg, comp_deg)
+
+flextable::flextable(n_vals) |>
+  flextable::set_header_labels(
+    label = "n (label)",
+    n = "n (value)",
+    theta_deg = "θn = arctan(1/√n) (deg)",
+    comp_deg = "90° − θn (deg)"
+  ) |>
+  flextable::autofit()
+```
+
+---
+
+## One more diagnostic diagram: the “fan” from a corner
+
+This last plot shows your idea: multiple method-B rays from the bottom-left corner.
+
+```{r}
+#| label: fig-fan
+#| fig-cap: "A method-B fan of rays from the bottom-left corner for n ∈ {φ,2,3,4,5,6,7}. The √2 diagonal is included for reference."
+#| fig-width: 7
+#| fig-height: 5
+
+phi <- (1 + sqrt(5))/2
+fan <- tibble::tibble(
+  label = c("φ", "2", "3", "4", "5", "6", "7"),
+  n = c(phi, 2, 3, 4, 5, 6, 7)
+) |>
+  dplyr::mutate(
+    theta = atan(1/sqrt(n)),      # radians
+    # pick a common ray length to show direction
+    L = w * 0.95,
+    xend = L * cos(theta),
+    yend = L * sin(theta)
+  )
+
+diag <- tibble::tibble(
+  label = "√2 diagonal",
+  x = 0, y = 0,
+  xend = w, yend = h
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_rect(
+    ggplot2::aes(xmin = 0, xmax = w, ymin = 0, ymax = h),
+    fill = NA,
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_segment(
+    data = fan,
+    ggplot2::aes(x = 0, y = 0, xend = xend, yend = yend),
+    linewidth = 0.8,
+    alpha = 0.85
+  ) +
+  ggplot2::geom_segment(
+    data = diag,
+    ggplot2::aes(x = x, y = y, xend = xend, yend = yend),
+    linewidth = 1.0
+  ) +
+  ggplot2::geom_text(
+    data = fan,
+    ggplot2::aes(x = xend, y = yend, label = label),
+    hjust = -0.1,
+    vjust = 0.5,
+    size = 3.5
+  ) +
+  ggplot2::coord_equal(expand = TRUE) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::labs(x = NULL, y = NULL)
+```
+
+---
+
+## Summary (the narrative, in one place)
+
+- With \(h=36\) and \(w=36\sqrt2\approx 50.9\), your rectangle is essentially a true \(\sqrt2\) rectangle.
+- Using method **B**, the diagonal angle from the base is  
+  \(\theta=\arctan(1/\sqrt2)\approx 35.264^\circ\).  
+  That’s why it matches perfectly at the bottom-left corner when the base runs left → right.
+- When you move the tool to other corners, the *geometry* is unchanged, but the **numeric angle label changes by quadrant**:
+  \(\theta\), \(180^\circ-\theta\), \(180^\circ+\theta\), \(360^\circ-\theta\).
+- The “midpoint” behavior is the complementary angle phenomenon:  
+  \(90^\circ-\theta=\arctan(\sqrt2)\approx 54.736^\circ\).  
+  In a \(\sqrt2\) rectangle, a slope-\(\sqrt2\) ray from a corner hits the opposite side at its midpoint exactly.
+- If your tool is rotated but not mirrored (or if you measure from a different edge), you can accidentally draw the complement direction—producing consistent-but-surprising results like midpoint hits.
