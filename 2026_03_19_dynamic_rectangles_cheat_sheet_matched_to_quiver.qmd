@@ -119,20 +119,22 @@ phi      <- (1 + sqrt(5)) / 2        # phi = 1.6180339887
 
 # Editable title and date
 chart_title <- "Height x Multiplier = Length of Base"
-chart_date <- format(Sys.Date(), "%B %d, %Y")
+chart_date <- paste("Revised:", format(Sys.Date(), "%B %d, %Y"))
 
 # Ratios ordered by base length (ratio value)
+# Matches the full set used in the companion "quiver of arrows" file
 ratios <- list(
-  list(name = "Square",              ratio = 1,        label = "Multiplier = 1"),
-  list(name = "Root-Phi Rectangle",  ratio = sqrt_phi, label = sprintf("Multiplier = %.4f = √φ", sqrt_phi)),
-  list(name = "Root 2 Rectangle",    ratio = sqrt(2),  label = sprintf("Multiplier = %.4f = √2", sqrt(2))),
-  list(name = "Phi Rectangle",       ratio = phi,      label = sprintf("Multiplier = %.4f = φ",  phi)),
-  list(name = "Root 3 Rectangle",    ratio = sqrt(3),  label = sprintf("Multiplier = %.4f = √3", sqrt(3))),
-  list(name = "Root 4 Rectangle",    ratio = sqrt(4),  label = sprintf("Multiplier = %.4f = √4", sqrt(4))),
-  list(name = "Root 5 Rectangle",    ratio = sqrt(5),  label = sprintf("Multiplier = %.4f = √5", sqrt(5))),
-  list(name = "Root 6 Rectangle",    ratio = sqrt(6),  label = sprintf("Multiplier = %.4f = √6", sqrt(6))),
-  list(name = "Root 7 Rectangle",    ratio = sqrt(7),  label = sprintf("Multiplier = %.4f = √7", sqrt(7))),
-  list(name = "Root 8 Rectangle",    ratio = sqrt(8),  label = sprintf("Multiplier = %.4f = √8", sqrt(8)))
+  list(name = "Root 1 (a square)",              ratio = 1,          label = "Multiplier = 1 = √1"),
+  list(name = "Root-Phi Rectangle",  ratio = sqrt_phi,   label = sprintf("Multiplier = %.4f = √φ", sqrt_phi)),
+  list(name = "Root 2 Rectangle",    ratio = sqrt(2),    label = sprintf("Multiplier = %.4f = √2", sqrt(2))),
+  list(name = "Root 2.25 (1.5 Rectangle)", ratio = sqrt(2.25), label = sprintf("Multiplier = %.4f = √2.25", sqrt(2.25))),
+  list(name = "Phi Rectangle",       ratio = phi,        label = sprintf("Multiplier = %.4f = φ",  phi)),
+  list(name = "Root 3 Rectangle",    ratio = sqrt(3),    label = sprintf("Multiplier = %.4f = √3", sqrt(3))),
+  list(name = "Root 4 Rectangle",    ratio = sqrt(4),    label = sprintf("Multiplier = %.4f = √4", sqrt(4))),
+  list(name = "Root 5 Rectangle",    ratio = sqrt(5),    label = sprintf("Multiplier = %.4f = √5", sqrt(5))),
+  list(name = "Root 6 Rectangle",    ratio = sqrt(6),    label = sprintf("Multiplier = %.4f = √6", sqrt(6))),
+  list(name = "Root 7 Rectangle",    ratio = sqrt(7),    label = sprintf("Multiplier = %.4f = √7", sqrt(7))),
+  list(name = "Root 9 Rectangle",    ratio = sqrt(9),    label = sprintf("Multiplier = %.4f = √9", sqrt(9)))
 )
 
 create_frame_sheet <- function(page_width, page_height) {
@@ -148,25 +150,41 @@ create_frame_sheet <- function(page_width, page_height) {
   col_gap <- 0.3
   col_width <- (work_width - col_gap) / 2
   
-  # 5 rectangles per column
-  n_per_col <- 5
+  # Number of rectangles per column (auto-balances the full set)
+  n_per_col <- ceiling(length(ratios) / 2)
   
   # FIXED HEIGHT FOR ALL RECTANGLES - ADJUST THIS VALUE
   rect_h <- 1.10  # inches - increase/decrease until rectangles are desired size
   
-  # Fixed spacing for title and caption
-  title_space <- 0.22   # space above rectangle for title
-  caption_space <- 0.22 # space below rectangle for caption
+  # Fixed spacing for title and caption blocks
+  title_space <- 0.22   # reserved space above rectangle for title block
+  caption_space <- 0.22 # reserved space below rectangle for caption block
   
-  # Calculate row_gap from remaining space
-  total_row_height <- title_space + rect_h + caption_space
-  total_content_needed <- n_per_col * total_row_height
-  remaining_space <- content_top - total_content_needed
-  row_gap <- 0.45   #remaining_space / (n_per_col - 1)  # distribute remaining space as gaps
+  # Direct control for the gap between one caption and the next title
+  # Increase this value to add more space below the caption and above the next title
+  between_text_gap <- 0.55
   
-  # Distance from text to rectangle edge (increase for more separation)
+  # Distance from text baseline to rectangle edge
+  # Increase title_offset to move titles higher above rectangles
+  # Increase caption_offset to move captions farther below rectangles
   title_offset <- 0.12
   caption_offset <- 0.12
+  
+  # Convert the desired caption-to-next-title gap into the row gap used by the layout
+  row_gap <- between_text_gap - title_space - caption_space + caption_offset + title_offset
+  if (row_gap < 0) row_gap <- 0
+  
+  total_row_height <- title_space + rect_h + caption_space
+  total_step_height <- total_row_height + row_gap
+  available_step_height <- content_top / n_per_col
+  
+  # Auto-fit safeguard: if the requested row height + gap will not fit on the page,
+  # shrink the rectangle height so the final row stays visible.
+  if (total_step_height > available_step_height) {
+    rect_h <- max(0.55, available_step_height - title_space - caption_space - row_gap)
+    total_row_height <- title_space + rect_h + caption_space
+    total_step_height <- total_row_height + row_gap
+  }
   
   # Left margin within each column for "h" label
   left_pad <- 0.25
@@ -184,7 +202,7 @@ create_frame_sheet <- function(page_width, page_height) {
   for (i in seq_along(ratios)) {
     r <- ratios[[i]]
     
-    # Determine column (1-5 in col 1, 6-10 in col 2)
+    # Determine column placement
     col <- ifelse(i <= n_per_col, 1, 2)
     row_in_col <- ifelse(i <= n_per_col, i, i - n_per_col)
     
@@ -193,14 +211,15 @@ create_frame_sheet <- function(page_width, page_height) {
     
     # Calculate vertical position from top down
     # Row 1 starts at content_top, each subsequent row is below
-    row_top <- content_top - (row_in_col - 1) * (title_space + rect_h + caption_space + row_gap)
+    row_top <- content_top - (row_in_col - 1) * total_step_height
     
     # Position elements within row
     rect_top <- row_top - title_space
     rect_bottom <- rect_top - rect_h
     
     # Position text with offset from rectangle edges
-    title_y <- rect_top + title_offset
+    extra_title_drop <- if (grepl("Root 2.25 Rectangle", r$name, fixed = TRUE)) 0.06 else 0
+    title_y <- rect_top + title_offset - extra_title_drop
     caption_y <- rect_bottom - caption_offset
     
     # Width based on aspect ratio (width = height * ratio)
@@ -231,7 +250,7 @@ create_frame_sheet <- function(page_width, page_height) {
   p <- ggplot2::ggplot() +
     # Header: title on left, date above
     ggplot2::annotate("text", x = 0, y = 9.5, label = "** Root 2 Example: If height = 36cm, base = 36cm x 1.4142 = 50.9cm",
-                      size = 5, fontface = "bold", hjust = 0, vjust = 0.5) +
+                      size = 5, fontface = "bold", hjust = 0, vjust = 0.25) +
     ggplot2::annotate("text", x = 0, y = 10, label = chart_title,
                       size = 10, fontface = "bold", hjust = 0, vjust = 0.5) +
     ggplot2::annotate("text", x = work_width, y = 10.5, label = chart_date,
@@ -245,7 +264,7 @@ create_frame_sheet <- function(page_width, page_height) {
     ggplot2::geom_text(
       data = rects,
       ggplot2::aes(x = title_x, y = title_y, label = title),
-      size = 5, fontface = "bold", hjust = 0, vjust = 0
+      size = 5, fontface = "bold", hjust = 0, vjust = 0, lineheight = 0.9
     ) +
     ggplot2::geom_text(
       data = rects,

@@ -1,10 +1,9 @@
 ---
 title: "Angle Reference Table"
-subtitle: "Angle between height and base for various rectangle proportions, And Your Own Quiver of Arrows"
+subtitle: "Angle between height and base for various rectangle proportions, And Your Own 'Quiver of Arrows'"
 description: ""
 authors: 
   - name: "Dan Swart, CPA (ret)"
-date: today
 date-format: long
 # bibliography: manual-refs.bib
 format:
@@ -167,18 +166,6 @@ flextable::set_flextable_defaults(
 
 
 
-# Flextable built-in themes:
-  # flextable::theme_alafoli()	|>  # BLAH
-  # flextable::theme_apa()  # THIS IS NICE
-  # flextable::theme_booktabs() |>  # NICE, MORE COMPACT
-  # flextable::theme_box() |>   # OK, INCLUDES CELL BORDERS
-  # flextable::theme_tron() |>  # 'DARK MODE' BLUE TEXT
-  # flextable::theme_tron_legacy() |>   # 'DARK MODE' YELLOW TEXT
-  # flextable::theme_vader() |>    # 'DARK MODE' WHITE TEXT
-  # flextable::theme_vanilla() |>   # NOT SPECIAL
-  # flextable::theme_zebra()	|>
-  #
-
 
 # Set global theme for consistent plots
 ggplot2::theme_set(
@@ -275,9 +262,22 @@ base::set.seed(123)
 #| label: angle-setup
 #| message: false
 sqrt_phi <- sqrt((1 + sqrt(5)) / 2)
+phi      <- (1 + sqrt(5)) / 2
 angles_df <- data.frame(
-  base_name = c("√1", "√φ", "√2", "√3", "√4", "√5", "√6", "√7"),
-  base_value = c(sqrt(1), sqrt_phi, sqrt(2), sqrt(3), sqrt(4), sqrt(5), sqrt(6), sqrt(7)),
+  base_name = c("√1", "√φ", "√2", "√2.25", "φ", "√3", "√4", "√5", "√6", "√7", "√9"),
+  base_value = c(
+    sqrt(1),
+    sqrt_phi,
+    sqrt(2),
+    sqrt(2.25),
+    phi,
+    sqrt(3),
+    sqrt(4),
+    sqrt(5),
+    sqrt(6),
+    sqrt(7),
+    sqrt(9)
+  ),
   height = 1
 )
 angles_df$theta_rad <- atan2(angles_df$height, angles_df$base_value)
@@ -301,7 +301,19 @@ flextable::flextable(display_df) |>
 ```
 
 \
-Your 'Quiver of Arrows' below is made to analyze any rectangle from left to right.  It can be used to INSPECT existing work, or CONSTRUCT a framework for composing a new work.  This means it will only work when you place it in the lower left corner, or the top right corner with the long side as the base.  If you insist on using it on the bottom right or top left the root2 arrow will point exactly to the midpoint of the opposite side.  Try it, you'll see.  It's an extra bonus that you get for free!
+
+***REVISED 2026-03-19***
+
+
+Mount your printed 'Quiver of Arrows' under your tracing paper and draw the vertical and horizontal lines and extend each arrow to a length that will cover the largest image you will be analyzing.  You should be able to easily see the template beneath your tracing paper.
+
+It is recommended you color code each arrow using the color coding of our fearless leader, Dan T.
+
+You may need to trim the left and bottom edges of your tracing paper 'quiver' so it fits easily in the spine of a book.
+
+It can be used to INSPECT existing work, or CONSTRUCT a framework for composing a new work.  It must be set in the lower LEFT corner of a work in landscape orientation, or the top LEFT corner for a work in portrait orientation.
+
+The "√2.25" rectangle is also known as the "1.5 Rectangle".  The square root of 2.25 is 1.50.
 
 \
 \
@@ -311,11 +323,7 @@ Your 'Quiver of Arrows' below is made to analyze any rectangle from left to righ
 **********
 :::
 
-I know it works on landscape orientation, but not sure yet if it works in portrait orientation.  I haven't gotten that far in the lecture.
 
-I recommend placing it at the bottom left corner.  Short side = the height, longer side is the base.
-
-Slip it under the tracing paper to verify the construction of your work, look through the traccing paper to ANALIZE an existing image, or use it to draw the correct diagonal for the appropriate rectangle.
 
 
 {{< pagebreak >}}
@@ -334,6 +342,7 @@ Slip it under the tracing paper to verify the construction of your work, look th
 max_height <- 6
 max_base <- 10
 line_length <- sqrt(max_height^2 + max_base^2)
+arrow_extension <- 2
 lines_df <- data.frame(
   label = angles_df$base_name,
   theta_rad = angles_df$theta_rad
@@ -348,25 +357,34 @@ lines_df$yend <- pmin(lines_df$yend, max_height)
 lines_df$xend <- ifelse(lines_df$yend == max_height,
                         max_height / tan(lines_df$theta_rad),
                         lines_df$xend)
+
+# Extend every arrow 2 inches beyond the reference rectangle edge
+lines_df$xend <- lines_df$xend + arrow_extension * cos(lines_df$theta_rad)
+lines_df$yend <- lines_df$yend + arrow_extension * sin(lines_df$theta_rad)
+
 label_offset <- 0.6
 
-# Detect which lines are clamped to bounding box edges
-hit_top   <- abs(lines_df$yend - max_height) < 0.01
-hit_right <- abs(lines_df$xend - max_base)   < 0.01
-
-# Default: push label outward along the angle
+# Default: push label outward along the angle from the new arrow tip
 lines_df$label_x <- lines_df$xend + label_offset * cos(lines_df$theta_rad)
 lines_df$label_y <- lines_df$yend + label_offset * sin(lines_df$theta_rad)
 
-# Lines hitting the ceiling: push label straight UP so closely-spaced
-# angles (like sqrt(phi) and sqrt(2)) don't stack on the same y-position
-lines_df$label_x[hit_top] <- lines_df$xend[hit_top]
-lines_df$label_y[hit_top] <- lines_df$yend[hit_top] + label_offset
+# Nudge a few crowded end labels 1 inch to the left
+lines_df$label_x[lines_df$label %in% c("√φ", "√2", "√2.25", "φ")] <-
+  lines_df$label_x[lines_df$label %in% c("√φ", "√2", "√2.25", "φ")] - 1
 
-# Lines hitting the right wall: push label straight RIGHT
-lines_df$label_x[hit_right] <- lines_df$xend[hit_right] + label_offset
-lines_df$label_y[hit_right] <- lines_df$yend[hit_right]
+# Lower √3 through √9 labels by 0.50 inches
+lines_df$label_y[lines_df$label %in% c("√3", "√4", "√5", "√6", "√7", "√9")] <-
+  lines_df$label_y[lines_df$label %in% c("√3", "√4", "√5", "√6", "√7", "√9")] - 0.5
 
+# Extend only the φ arrow another 1 inch, then move its label with it
+lines_df$xend[lines_df$label == "φ"] <-
+  lines_df$xend[lines_df$label == "φ"] + 1 * cos(lines_df$theta_rad[lines_df$label == "φ"])
+lines_df$yend[lines_df$label == "φ"] <-
+  lines_df$yend[lines_df$label == "φ"] + 1 * sin(lines_df$theta_rad[lines_df$label == "φ"])
+lines_df$label_x[lines_df$label == "φ"] <-
+  lines_df$xend[lines_df$label == "φ"] + label_offset * cos(lines_df$theta_rad[lines_df$label == "φ"]) - 1
+lines_df$label_y[lines_df$label == "φ"] <-
+  lines_df$yend[lines_df$label == "φ"] + label_offset * sin(lines_df$theta_rad[lines_df$label == "φ"])
 
 # label_offset <- 0.6
 # lines_df$label_x <- lines_df$xend + label_offset * cos(lines_df$theta_rad)
@@ -376,7 +394,7 @@ ggplot2::ggplot() +
     data = lines_df,
     ggplot2::aes(x = 0, y = 0, xend = xend, yend = yend),
     arrow = ggplot2::arrow(length = ggplot2::unit(0.15, "inches"), type = "closed"),
-    linewidth = 4.5
+    linewidth = 4.0
   ) +
   ggplot2::geom_text(
     data = lines_df,
@@ -385,13 +403,13 @@ ggplot2::ggplot() +
   ) +
   ggplot2::geom_segment(
     ggplot2::aes(x = 0, y = 0, xend = 0, yend = max_height),
-    linewidth = 4.5
+    linewidth = 4.0
   ) +
   ggplot2::geom_segment(
     ggplot2::aes(x = 0, y = 0, xend = max_base, yend = 0),
-    linewidth = 4.5
+    linewidth = 4.0
   ) +
-  ggplot2::coord_fixed(ratio = 1, xlim = c(-0.5, max_base + 1), ylim = c(-0.5, max_height + 0.5)) +
+  ggplot2::coord_fixed(ratio = 1, xlim = c(-0.5, max(lines_df$label_x) + 0.5), ylim = c(-0.5, max(lines_df$label_y) + 0.5)) +
   ggplot2::theme_minimal() +
   ggplot2::labs(title = "Your 'Quiver of Arrows'") +
   ggplot2::theme(
